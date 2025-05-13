@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marshall Gas 智能监控</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+    
+        
+        body {
+            background-color: #2E1C17;
+            font-family: 'Microsoft YaHei', sans-serif;
+            color: #FFFFFF;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        .auth-form {
+            padding: 20px;
+            color: #FFFFFF;
+        }
+        
+        .auth-form input {
+            background-color: #3D2A24;
+            border: 1px solid #5D4A44;
+            color: #E0D0C1;
+            position: relative;
+            z-index: 1060;
+            pointer-events: auto;
+        }
+        
+        .auth-form .form-control:focus {
+            background-color: #2E1C17;
+            border-color: #4CAF50;
+            color: #FFFFFF;
+            box-shadow: 0 0 0 0.25rem rgba(76, 175, 80, 0.25);
+        }
+        
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                height: auto;
+                padding: 10px;
+            }
+            
+            .header-left {
+                margin-left: 0;
+                margin-bottom: 10px;
+            }
+            
+            .header-center {
+                margin-bottom: 10px;
+            }
+            
+            .user-info {
+                margin-right: 10px;
+            }
+        }
+        
+        .gas-effect {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 300px;
+            background: 
+                radial-gradient(circle at 30% 50%, rgba(76, 175, 80, var(--gas-opacity)) 0%, rgba(46, 28, 23, 0) 60%),
+                radial-gradient(circle at 70% 50%, rgba(76, 175, 80, var(--gas-opacity)) 0%, rgba(46, 28, 23, 0) 60%),
+                radial-gradient(circle at 50% 50%, rgba(76, 175, 80, calc(var(--gas-opacity) * 0.5)) 0%, rgba(46, 28, 23, 0) 70%);
+            animation: gasFlow calc(var(--gas-speed) * 1s) infinite alternate ease-in-out;
+            pointer-events: none;
+            z-index: 1;
+            opacity: var(--gas-opacity);
+        }
+
+        @keyframes gasFlow {
+            0% {
+                transform: translate(-50%, -50%) scale(1.1) translateX(-5%);
+                filter: blur(15px);
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1) translateX(5%);
+                filter: blur(20px);
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1.1) translateX(-5%);
+                filter: blur(15px);
+            }
+        }
+
+        .header {
+            padding: 20px;
+            background-color: #2E1C17;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 90px;
+        }
+
+        .header-left {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-left: 35px;
+        }
+
+        .bluetooth-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            width: 25px;
+            height: 30px;
+        }
+
+        .find-text {
+            color: #FFFFFF;
+            font-size: 8px;
+            margin-top: 1px;
+        }
+
+        .header-center {
+            text-align: center;
+        }
+
+        .header-title {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .device-status {
+            font-size: 10px;
+            color: #FFFFFF;
+        }
+
+        .battery-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .battery-icon {
+            width: 30px;
+            height: 15px;
+            border: 2px solid #FFFFFF;
+            border-radius: 3px;
+            position: relative;
+            padding: 1px;
+        }
+
+        .battery-level {
+            height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.3s;
+        }
+
+        .battery-cap {
+            width: 3px;
+            height: 8px;
+            background-color: #FFFFFF;
+            position: absolute;
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .main-display {
+            margin: 20px;
+            background-color: #2E1C17;
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .device-list-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #1A0F0C;
+            border-radius: 10px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            color: #FFFFFF;
+            margin-bottom: 15px;
+        }
+
+        .device-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .device-item {
+            background-color: #2E1C17;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .device-item:hover {
+            background-color: #4E3733;
+        }
+
+        .device-item.active {
+            background-color: #4CAF50;
+        }
+
+        .gas-regulator {
+            text-align: center;
+            margin: 40px 0;
+            position: relative;
+            perspective: 1000px;
+            --gas-opacity: 0.4;
+            --gas-speed: 6;
+        }
+
+        .gas-tank {
+            width: 200px;
+            height: 300px;
+            margin: 0 auto;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateX(10deg) rotateY(-5deg);
+        }
+
+        .tank-body {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+        }
+
+        .tank-top {
+            width: 100%;
+            height: 60px;
+            background: linear-gradient(45deg, #0047AB, #4169E1);
+            border-radius: 10px;
+            position: absolute;
+            top: 0;
+            transform-origin: bottom;
+            transform: rotateX(5deg);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .tank-gauge {
+            width: 40px;
+            height: 180px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            position: absolute;
+            left: 50%;
+            top: 70px;
+            transform: translateX(-50%);
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.3);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .gauge-level {
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, #006400, #228B22);
+            position: absolute;
+            bottom: 0;
+            transition: height 0.5s ease-in-out;
+            box-shadow: 0 0 15px rgba(0,100,0,0.8);
+        }
+
+        .tank-bottom {
+            width: 100%;
+            height: 240px;
+            background: linear-gradient(45deg, #C0C0C0, #D3D3D3);
+            border-radius: 10px;
+            position: absolute;
+            top: 60px;
+            transform-origin: top;
+            transform: rotateX(-5deg) rotateY(5deg);
+            box-shadow: 0 15px 25px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+
+        .tank-bottom::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%),
+                linear-gradient(45deg, transparent 0%, rgba(0,0,0,0.2) 50%, transparent 100%);
+            pointer-events: none;
+        }
+
+        .tank-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            perspective: 1000px;
+        }
+
+        .indicator-ring {
+            width: 90px;
+            height: 90px;
+            border: 6px solid #2F4F4F;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000000;
+            box-shadow: 
+                0 0 25px rgba(0,0,0,0.6),
+                inset 0 0 20px rgba(0,0,0,0.8);
+            position: relative;
+            transform: rotateX(10deg);
+        }
+
+        .indicator-ring::before {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border: 3px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+        }
+
+        .indicator-ring::after {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 6px;
+            background: #FFFFFF;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            border-radius: 3px;
+            box-shadow: 0 0 15px rgba(255,255,255,0.8);
+        }
+
+        .indicator-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #FFFFFF;
+            text-shadow: 0 0 15px rgba(255,255,255,0.7);
+            position: relative;
+            z-index: 1;
+        }
+
+        .tank-level {
+            position: absolute;
+            right: 40px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .level-bar {
+            width: 50px;
+            height: 300px;
+            background-color: #1A0F0C;
+            border-radius: 15px;
+            position: relative;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .level-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: linear-gradient(to top, #4CAF50, #81C784);
+            border-radius: 15px;
+            transition: height 0.3s;
+            box-shadow: 0 0 15px rgba(76,175,80,0.4);
+        }
+
+        .level-label {
+            font-size: 14px;
+            color: #FFFFFF;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .chart-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #1A0F0C;
+            border-radius: 10px;
+            height: 300px;
+        }
+
+        .status-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #1A0F0C;
+            border-radius: 10px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            font-size: 14px;
+            color: #FFFFFF80;
+        }
+
+        .status-value {
+            color: #FFFFFF;
+            font-weight: bold;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: #2E1C17;
+            margin: 15% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 10px;
+            position: relative;
+            z-index: 1050;
+        }
+        
+        .modal-backdrop {
+            z-index: 1040;
+        }
+        
+        .modal {
+            z-index: 1050;
+        }
+
+        .frequency-option {
+            padding: 15px;
+            margin: 10px 0;
+            background-color: #2E1C17;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .frequency-option:hover {
+            background-color: #4E3733;
+        }
+    </style>
+</head>
+<body>
+<script>
+// 全局变量声明
+let currentUser = null;
+let ws = null;
+
+// 配置对象
+const CONFIG = {
+    WS_URL: 'ws://118.178.231.142:1880/ws/test',
+    API_URL: 'http://192.168.31.187:8000',
+};
+</script>
+    <div class="header">
+        <div class="header-left">
+            <button id="bluetooth" class="bluetooth-btn">
+                <svg width="25" height="30" viewBox="0 0 25 30" fill="none">
+                    <path d="M12.5 0L25 15L12.5 30L0 15L12.5 0Z" fill="#FFFFFF"/>
+                </svg>
+            </button>
+            <span class="find-text">Find Smart Reg</span>
+        </div>
+        <div class="header-center">
+            <div class="header-title">MARSHALL GAS</div>
+            <div class="device-status">SMART REG</div>
+        </div>
+        <div id="userSection" class="d-flex align-items-center">
+            <span>欢迎, 用户名</span>
+            <button class="btn btn-sm btn-outline-light me-2" id="logoutButton">登出</button>
+        </div>
+        <div class="d-flex align-items-center">
+            <script>
+            window.addEventListener('DOMContentLoaded', () => {
+                const userSection = document.getElementById('userSection');
+                const authButtons = document.getElementById('authButtons');
+                
+                if (currentUser) {
+                    userSection.style.display = 'block';
+                    authButtons.style.display = 'none';
+                    showUserInfo(currentUser);
+                } else {
+                    userSection.style.display = 'none';
+                    authButtons.style.display = 'flex';
+                }
+            });
+            </script>
+        </div>
+        <div id="authButtons" class="d-flex">
+            <button class="btn btn-sm btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#loginModal">登录</button>
+            <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#registerModal">注册</button>
+        </div>
+        <div class="battery-indicator ms-3">
+            <div class="battery-icon">
+                <div class="battery-level" id="batteryLevel"></div>
+                <div class="battery-cap"></div>
+            </div>
+            <span id="batteryText">0%</span>
+        </div>
+    </div>
+
+    <div class="main-display">
+        <div class="device-list-section">
+            <div class="section-title d-flex justify-content-between align-items-center">
+                <span>设备列表</span>
+                <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#bindDeviceModal">
+                    <i class="fas fa-plus"></i> 绑定设备
+                </button>
+            </div>
+            <div class="device-list" id="deviceList">
+                <!-- 设备列表将通过JavaScript动态填充 -->
+            </div>
+        </div>
+        
+        <!-- 设备绑定模态框 -->
+        <div class="modal fade" id="bindDeviceModal" tabindex="-1" aria-labelledby="bindDeviceModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content bg-dark text-light">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="bindDeviceModalLabel">绑定新设备</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="bindDeviceForm">
+                            <div class="mb-3">
+                                <label for="device_id" class="form-label">设备ID</label>
+                                <input type="text" class="form-control bg-dark text-light" id="device_id" placeholder="请输入设备ID" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="permissionLevel" class="form-label">权限级别</label>
+                                <select class="form-select bg-dark text-light" id="permissionLevel">
+                                    <option value="read">只读</option>
+                                    <option value="read_write">读写</option>
+                                </select>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="isOwner">
+                                <label class="form-check-label" for="isOwner">设置为设备所有者</label>
+                            </div>
+                            <div class="alert alert-danger d-none" id="bindDeviceError"></div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-success" id="bindDeviceBtn">绑定</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="gas-regulator">
+            <div class="gas-tank">
+                <div class="tank-body">
+                    <div class="tank-top"></div>
+                    <div class="tank-gauge">
+                        <div class="gauge-level" id="tankGaugeLevel"></div>
+                    </div>
+                    <div class="tank-bottom"></div>
+                    <div class="tank-indicator">
+                        <div class="indicator-ring">
+                            <div class="indicator-value" id="gasValue">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tank-level">
+                <div class="level-bar">
+                    <div class="level-fill"></div>
+                </div>
+                <div class="level-label">中</div>
+            </div>
+            <div class="gas-effect"></div>
+        </div>
+
+        <div class="chart-section">
+            <canvas id="historyChart"></canvas>
+        </div>
+
+        <div class="status-section">
+            <div class="status-row">
+                <span>设备ID</span>
+                <span class="status-value" id="device_id">--</span>
+            </div>
+            <div class="status-row">
+                <span>煤气浓度</span>
+                <span class="status-value" id="coalGas">--</span>
+            </div>
+            <div class="status-row">
+                <span>采集时间</span>
+                <span class="status-value" id="setTime">--</span>
+            </div>
+            <div class="status-row">
+                <span>最后更新</span>
+                <span class="status-value" id="lastUpdate">--</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="frequencyModal" class="modal">
+        <div class="modal-content">
+            <h4 style="margin-bottom: 20px;">数据更新频率设置</h4>
+            <div class="frequency-option" onclick="setFrequency(1)">10秒 - 测试与连接</div>
+            <div class="frequency-option" onclick="setFrequency(2)">15分钟 - 频繁使用</div>
+            <div class="frequency-option" onclick="setFrequency(3)">2小时 - 正常使用</div>
+            <div class="frequency-option" onclick="setFrequency(4)">24小时 - 偶尔使用</div>
+            <div class="frequency-option" onclick="setFrequency(5)">30天 - 休眠模式</div>
+        </div>
+    </div>
+    
+    <!-- 登录模态框 -->
+    <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="loginModalLabel">用户登录</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form class="auth-form" id="loginForm">
+                        <div class="auth-error" id="loginError" style="color: #FF5252; margin-bottom: 10px;"></div>
+                        <div class="mb-3">
+                            <label for="loginUsername" class="form-label">用户名</label>
+                            <input type="text" class="form-control" id="loginUsername" autocomplete="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="loginPassword" class="form-label">密码</label>
+                            <input type="password" class="form-control" id="loginPassword" autocomplete="current-password" required>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="submit" class="btn btn-primary">登录</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 注册模态框 -->
+    <div class="modal fade" id="registerModal" tabindex="-1" aria-labelledby="registerModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="registerModalLabel">用户注册</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form class="auth-form" id="registerForm">
+                        <div class="auth-error" id="registerError" style="color: #FF5252; margin-bottom: 10px;"></div>
+                        <div class="mb-3">
+                            <label for="registerUsername" class="form-label">用户名</label>
+                            <input type="text" class="form-control" id="registerUsername" autocomplete="off" required>
+                            <div class="form-text">用户名长度必须在3-50个字符之间</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="registerPassword" class="form-label">密码</label>
+                            <input type="password" class="form-control" id="registerPassword" autocomplete="new-password" required>
+                            <div class="form-text">密码长度不能少于6个字符</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">确认密码</label>
+                            <input type="password" class="form-control" id="confirmPassword" autocomplete="new-password" required>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="submit" class="btn btn-primary">注册</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        
+        // WebSocket相关函数
+        function initWebSocket() {
+            if (ws && ws.readyState === WebSocket.OPEN) return;
+            
+            ws = new WebSocket(CONFIG.WS_URL);
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                updateConnectionStatus(true);
+                if (currentUser) {
+                    ws.send(JSON.stringify({ type: 'restore_session', user: currentUser }));
+                }
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                updateConnectionStatus(false);
+                setTimeout(initWebSocket, 5000);
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                updateConnectionStatus(false);
+            };
+        }
+        
+
+        
+        function updateConnectionStatus(isConnected) {
+            const statusElement = document.querySelector('.device-status');
+            statusElement.textContent = isConnected ? 'SMART REG - 已连接' : 'SMART REG - 未连接';
+            statusElement.style.color = isConnected ? '#4CAF50' : '#FF5252';
+        }
+        
+        // 用户界面更新函数
+        function updateUserUI(user) {
+            document.getElementById('userSection').style.display = 'block';
+            document.getElementById('authButtons').style.display = 'none';
+            document.querySelector('#userSection span').textContent = `欢迎, ${user.username}`;
+        }
+        
+        // 仪表盘更新函数
+        function updateGasIndicator(value) {
+            const gauge = document.getElementById('tankGaugeLevel');
+            gauge.style.height = `${Math.min(value, 100)}%`;
+            document.getElementById('gasValue').textContent = value;
+        }
+        
+        function updateTankLevel(value) {
+            const tankLevel = document.getElementById('tankLevel');
+            tankLevel.style.height = `${value}%`;
+            
+            let color;
+            if (value <= 40) {
+                color = '#FF5252';
+            } else if (value <= 70) {
+                color = '#FFA726';
+            } else {
+                color = '#4CAF50';
+            }
+            
+            tankLevel.style.background = `linear-gradient(to top, ${color}, ${color}CC)`;
+        }
+        
+        // 事件处理函数
+        async function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorElement = document.getElementById('loginError');
+        
+            try {
+                const response = await fetch(`${CONFIG.API_URL}/api/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ username, password })
+                });
+        
+                const data = await response.json();
+        
+                if (response.ok) {
+                    currentUser = data.user;
+                    localStorage.setItem('authToken', data.token);
+                    updateUserUI(currentUser);  // 使用专门的更新函数
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
+                    modal.hide();
+                    await fetchDevices();
+                } else {
+                    errorElement.textContent = data.error || '登录失败';
+                    errorElement.classList.remove('d-none');
+                }
+            } catch (error) {
+                console.error('登录请求错误:', error);
+                errorElement.textContent = '服务器连接错误';
+                errorElement.classList.remove('d-none');
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const errorElement = document.getElementById('registerError');
+        
+            if (password !== confirmPassword) {
+                errorElement.textContent = '两次输入的密码不一致';
+                errorElement.classList.remove('d-none');
+                return;
+            }
+        
+            try {
+                const response = await fetch(`${CONFIG.API_URL}/api/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ username, password })
+                });
+        
+                const data = await response.json();
+        
+                if (response.ok) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('registerModal'));
+                    modal.hide();
+                    // 显示注册成功消息，提示用户登录
+                    alert('注册成功，请登录');
+                } else {
+                    errorElement.textContent = data.error || '注册失败';
+                    errorElement.classList.remove('d-none');
+                }
+            } catch (error) {
+                console.error('注册请求错误:', error);
+                errorElement.textContent = '服务器连接错误';
+                errorElement.classList.remove('d-none');
+            }
+        }
+
+        function showUserInfo(user) {
+            const userSection = document.getElementById('userSection');
+            userSection.querySelector('span').textContent = `欢迎, ${user.username}`;
+        }
+
+        async function logout() {
+            try {
+                const response = await fetch(`${CONFIG.API_URL}/api/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+        
+                if (response.ok) {
+                    currentUser = null;
+                    document.getElementById('userSection').style.display = 'none';
+                    document.getElementById('authButtons').style.display = 'flex';
+                    document.getElementById('deviceList').innerHTML = '';
+                }
+            } catch (error) {
+                console.error('登出失败:', error);
+            }
+        }
+        
+        async function bindDevice(event) {
+            event.preventDefault();
+            const device_id = document.getElementById('device_id').value.trim();
+            const permissionLevel = document.getElementById('permissionLevel').value;
+            const isOwner = document.getElementById('isOwner').checked;
+            const errorElement = document.getElementById('bindDeviceError');
+        
+            if (!/^[A-Za-z0-9-_]{4,50}$/.test(device_id)) {
+                errorElement.textContent = '设备ID格式无效（应为4-50位字母、数字、横线或下划线）';
+                errorElement.classList.remove('d-none');
+                return;
+            }
+        
+            try {
+                const response = await fetch(`${CONFIG.API_URL}/api/bind-device`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ device_id, permission_level: permissionLevel, is_owner: isOwner })
+                });
+        
+                const data = await response.json();
+        
+                if (response.ok) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('bindDeviceModal'));
+                    modal.hide();
+                    await fetchDevices();
+                    selectDevice(device_id);
+                } else {
+                    errorElement.textContent = data.error || '绑定设备失败';
+                    errorElement.classList.remove('d-none');
+                }
+            } catch (error) {
+                console.error('绑定设备请求错误:', error);
+                errorElement.textContent = '服务器连接错误';
+                errorElement.classList.remove('d-none');
+            }
+        }
+        
+        // 频率设置相关函数
+        function openFrequencyModal() {
+            document.getElementById('frequencyModal').style.display = 'block';
+        }
+        
+        function setFrequency(level) {
+            const frequencies = {
+                1: { time: 10, text: '10秒 - 测试与连接' },
+                2: { time: 900, text: '15分钟 - 频繁使用' },
+                3: { time: 7200, text: '2小时 - 正常使用' },
+                4: { time: 86400, text: '24小时 - 偶尔使用' },
+                5: { time: 2592000, text: '30天 - 休眠模式' }
+            };
+        
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ SET_LEVEL: level }));
+                document.getElementById('updateFreq').textContent = frequencies[level].text;
+                document.getElementById('setTime').textContent = `${frequencies[level].time} s`;
+            }
+        
+            document.getElementById('frequencyModal').style.display = 'none';
+        }
+        
+        // 初始化和事件绑定
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM已加载，初始化WebSocket和事件监听');
+            
+            // 初始化WebSocket
+            initWebSocket();
+            
+            // 绑定事件监听器
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            const logoutButton = document.getElementById('logoutButton');
+            const bindDeviceButton = document.getElementById('bindDeviceBtn');
+            
+            loginForm?.addEventListener('submit', handleLogin);
+            registerForm?.addEventListener('submit', handleRegister);
+            logoutButton?.addEventListener('click', logout);
+            bindDeviceButton?.addEventListener('click', bindDevice);
+            
+            // 模态框点击关闭
+            window.onclick = (event) => {
+                const modal = document.getElementById('frequencyModal');
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            };
+        });
+        async function fetchDevices() {
+  try {
+    const response = await fetch(`${CONFIG.API_URL}/api/devices`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include'
+    });
+    
+    if (!response.ok) throw new Error('获取设备列表失败');
+    const devices = await response.json();
+    return devices;
+  } catch (error) {
+    console.error('获取设备列表错误:', error);
+    return [];
+  }
+}
+
+// 绑定设备
+async function bindDevice(deviceData) {
+  try {
+    const response = await fetch(`${CONFIG.API_URL}/api/bind-device`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify(deviceData)
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || '绑定设备失败');
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// 解绑设备
+async function unbindDevice(deviceId) {
+  try {
+    const response = await fetch(`${CONFIG.API_URL}/api/unbind-device/${deviceId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include'
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || '解绑设备失败');
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// 获取设备历史数据
+async function fetchDeviceHistory(deviceId) {
+  try {
+    const response = await fetch(`${CONFIG.API_URL}/api/history/${deviceId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include'
+    });
+
+    if (!response.ok) throw new Error('获取设备历史数据失败');
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('获取设备历史数据错误:', error);
+    return null;
+  }
+}
+
+// 用户注册
+async function handleRegister(e) {
+  e.preventDefault();
+  const username = document.getElementById('registerUsername').value;
+  const password = document.getElementById('registerPassword').value;
+  const confirmPassword = document.getElementById('confirmPassword').value;
+  const errorElement = document.getElementById('registerError');
+
+  if (password !== confirmPassword) {
+      errorElement.textContent = '两次输入的密码不一致';
+      errorElement.classList.remove('d-none');
+      return;
+  }
+
+  try {
+      const response = await fetch(`${CONFIG.API_URL}/api/register`, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({ username, password })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+          const modal = bootstrap.Modal.getInstance(document.getElementById('registerModal'));
+          modal.hide();
+          // 显示注册成功消息，提示用户登录
+          alert('注册成功，请登录');
+      } else {
+          errorElement.textContent = data.error || '注册失败';
+          errorElement.classList.remove('d-none');
+      }
+  } catch (error) {
+      console.error('注册请求错误:', error);
+      errorElement.textContent = '服务器连接错误';
+      errorElement.classList.remove('d-none');
+  }
+}
+
+// 用户登出
+async function handleLogout() {
+  try {
+    const response = await fetch(`${CONFIG.API_URL}/api/logout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include'
+    });
+
+    if (response.ok) {
+      currentUser = null;
+      localStorage.removeItem('authToken');
+      document.getElementById('userSection').style.display = 'none';
+      document.getElementById('authButtons').style.display = 'flex';
+      location.reload();
+    }
+  } catch (error) {
+    console.error('登出错误:', error);
+  }
+}
+        
+        function selectDevice(device_id) {
+            const deviceItems = document.querySelectorAll('.device-item');
+            deviceItems.forEach(item => item.classList.remove('active'));
+            
+            const selectedDevice = Array.from(deviceItems)
+                .find(item => item.querySelector('.device-name').textContent === device_id);
+            
+            if (selectedDevice) {
+                selectedDevice.classList.add('active');
+                // 更新设备状态显示
+                document.getElementById('device_id').textContent = device_id;
+            }
+        }
+    </script>
+
+
