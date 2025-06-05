@@ -476,7 +476,7 @@ let ws = null;
 
 // 配置对象
 const CONFIG = {
-    WS_URL: 'ws://118.178.231.142:1880/ws/test',
+    WS_URL: 'ws://8.136.107.18:1880/ws/test',
     API_URL: 'http://192.168.31.187:8000',
 };
 </script>
@@ -774,7 +774,7 @@ const CONFIG = {
             const errorElement = document.getElementById('loginError');
         
             try {
-                const response = await fetch(`${CONFIG.API_URL}/api/login`, {
+                const response = await apiRequest(`${CONFIG.API_URL}/api/login`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -817,7 +817,7 @@ const CONFIG = {
             }
         
             try {
-                const response = await fetch(`${CONFIG.API_URL}/api/register`, {
+                const response = await apiRequest(`${CONFIG.API_URL}/api/register`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -851,7 +851,7 @@ const CONFIG = {
 
         async function logout() {
             try {
-                const response = await fetch(`${CONFIG.API_URL}/api/logout`, {
+                const response = await apiRequest(`${CONFIG.API_URL}/api/logout`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -884,13 +884,13 @@ const CONFIG = {
             }
         
             try {
-                const response = await fetch(`${CONFIG.API_URL}/api/bind-device`, {
+                const response = await apiRequest(`${CONFIG.API_URL}/api/bind-device`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({ device_id, permission_level: permissionLevel, is_owner: isOwner })
+                    body: JSON.stringify({ 
+                        device_id,
+                        permission_level: permissionLevel, 
+                        is_owner: isOwner 
+                    })
                 });
         
                 const data = await response.json();
@@ -960,16 +960,22 @@ const CONFIG = {
                 }
             };
         });
-        async function fetchDevices() {
+        // 创建通用的API请求函数
+async function apiRequest(url, options = {}) {
+  return fetch(url, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers
+    }
+  });
+}
+
+// 修改现有的API请求函数
+async function fetchDevices() {
   try {
-    const response = await fetch(`${CONFIG.API_URL}/api/devices`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include'
-    });
-    
+    const response = await apiRequest(`${CONFIG.API_URL}/api/devices`);
     if (!response.ok) throw new Error('获取设备列表失败');
     const devices = await response.json();
     return devices;
@@ -979,15 +985,10 @@ const CONFIG = {
   }
 }
 
-// 绑定设备
 async function bindDevice(deviceData) {
   try {
-    const response = await fetch(`${CONFIG.API_URL}/api/bind-device`, {
+    const response = await apiRequest(`${CONFIG.API_URL}/api/bind-device`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include',
       body: JSON.stringify(deviceData)
     });
 
@@ -1002,18 +1003,13 @@ async function bindDevice(deviceData) {
 // 解绑设备
 async function unbindDevice(deviceId) {
   try {
-    const response = await fetch(`${CONFIG.API_URL}/api/unbind-device/${deviceId}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include'
+    const response = await apiRequest(`${CONFIG.API_URL}/api/unbind-device/${deviceId}`, {
+      method: 'DELETE'
     });
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || '解绑设备失败');
-    return data;
+    if (!response.ok) throw new Error('解绑设备失败');
+    return await response.json();
   } catch (error) {
+    console.error('解绑设备错误:', error);
     throw error;
   }
 }
@@ -1021,13 +1017,7 @@ async function unbindDevice(deviceId) {
 // 获取设备历史数据
 async function fetchDeviceHistory(deviceId) {
   try {
-    const response = await fetch(`${CONFIG.API_URL}/api/history/${deviceId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include'
-    });
+    const response = await apiRequest(`${CONFIG.API_URL}/api/history/${deviceId}`);
 
     if (!response.ok) throw new Error('获取设备历史数据失败');
     const data = await response.json();
